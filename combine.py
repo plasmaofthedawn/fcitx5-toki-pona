@@ -1,14 +1,25 @@
 import subprocess
-import os 
+import os
+from collections import defaultdict
 
-header = """KeyCode=mnptkswljiueoaAR
+
+
+
+headers = defaultdict(lambda: """KeyCode=mnptkswljiueoaAR
+Length=16
+Prompt=
+ConstructPhrase=
+[Data]
+""")
+
+headers["UCSUR"] = """KeyCode=mnptkswljiueoa()[]{}^*.:"
 Length=16
 Prompt=
 ConstructPhrase=
 [Data]
 """
 
-ucscr_header = """KeyCode=mnptkswljiueoa()[]{}^*.: -"
+headers["nasin pi sitelen jelo"] = """KeyCode=mnptkswljiueoa[]"
 Length=16
 Prompt=
 ConstructPhrase=
@@ -70,7 +81,7 @@ for n, fn, d in zip(names, filenames, data.split("---")):
     print(n, fn)
     
     with open(f"raw_tables/{fn}.txt", "w") as f:
-        f.write(header if n != "UCSUR" and n != "nasin pi sitelen jelo" else ucscr_header)
+        f.write(headers[n])
         f.write(d.strip())
 
     subprocess.Popen(["libime_tabledict", f"raw_tables/{fn}.txt", f"table/{fn}.dict"])
