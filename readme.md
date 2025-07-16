@@ -18,6 +18,6 @@ running the combine.py script will sort it out into the dictionary and configura
 
 # installation
 
-copy all the files under the `confs` directory into `~/.local/share/fcitx5/inputmethod/` and all the files in the `table` dir into `~/.local/share/fcitx5/table/` dir
+run the `combine.py` script, then copy all the files under the `confs` directory into `~/.local/share/fcitx5/inputmethod/` and all the files in the `table` dir into `~/.local/share/fcitx5/table/` dir
 
-
+additionally you can download this on the aur [here](https://aur.archlinux.org/packages/fcitx5-toki-pona-git)
