@@ -8,6 +8,8 @@ as well as one for the UCSUR codepage, one for the emoji one (nasin pi sitelen j
 
 emoji and UCSUR data was adapted from [ajemi](https://github.com/dec32/ajemi/tree/master)
 
+there's also one for [sitelen seli kiwen](https://www.kreativekorp.com/software/fonts/sitelenselikiwen/). it has all the glyphs and varieties of the glyphs but not the names (yet (?))
+
 # building
 
 all the information for the tables are in that data text filee
