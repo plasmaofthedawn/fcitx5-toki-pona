@@ -1,36 +1,45 @@
+#!/usr/bin/python3
+
 import subprocess
 import os
-from collections import defaultdict
+import csv 
+import re
+import shutil
 
 
-
-
-headers = defaultdict(lambda: """KeyCode=mnptkswljiueoaAR
+KANSI_TABLE_HEADER = """KeyCode=mnptkswljiueoaAR
 Length=16
 Prompt=
 ConstructPhrase=
 [Data]
-""")
-
-headers["UCSUR"] = """KeyCode=mnptkswljiueoa()[]{}^*.:"
-Length=16
-Prompt=
-ConstructPhrase=
-[Data]
+. 。
+[ 「
+] 」
 """
 
-headers["nasin pi sitelen jelo"] = """KeyCode=mnptkswljiueoa[]"
+SITELEN_SELI_KIWEN_TABLE_HEADER = """KeyCode=mnptkswljiueoa()[]{}^*.:-_" 
 Length=16
 Prompt=
 ConstructPhrase=
 [Data]
+_ 　
+( 󱦗
+) 󱦘
+[ 󱦐 
+] 󱦑
+{ 󱦚 
+} 󱦛 
+^ 󱦕 
+* 󱦖 
+. 󱦜
+: 󱦝　
+- ‍
 """
-
 
 def make_conf(name, filepath):
 
     a = f"""[InputMethod]
-Name=toki pona - {name}
+Name=toki pona - sitelen Kansi({name})
 LangCode=toki pona
 Addon=table
 Configurable=True
@@ -39,7 +48,7 @@ Configurable=True
 File=table/{filepath}.dict
 OrderPolicy=Fast
 PageSize=10
-ExactMatch={"True" if name != "UCSUR" else "False"}
+ExactMatch=True
 
 [Table/PrevPage]
 0=Page_Up
@@ -62,28 +71,98 @@ ExactMatch={"True" if name != "UCSUR" else "False"}
     with open(f"confs/{filepath}.conf", "w") as f:
         f.write(a)
 
+
+# make the table dirs
+for i in ["generated_tables", "confs", "table"]:
+    try:
+        os.mkdir(i)
+    except FileExistsError as e:
+        pass
+
+
+print("Generating sitelen seli kiwen table...")
+
+data = open("sitelen_seli_kiwen_glyph_data.txt").read().split("<!--")
+
+with open("generated_tables/toki_pona_sitelen_seli_kiwen.txt", "w") as f:
+
+    f.write(SITELEN_SELI_KIWEN_TABLE_HEADER)
+
+    for i in data:
+        name = re.search('class="gsn">(<div class="long..">)?([^<]+)<', i) # grab the name of this glyph
+        if name: 
+            name = name.group(2)
+            
+            # skip compounds and the colors
+            if '+' in name or name == 'interpunct' or name == 'colon':
+                continue 
+
+            # grab the glyph
+            glyph = re.search('class="gsg">([^<]*)<', i).group(1)
+
+            # clean up the name 
+            name = name.split(" ")[0]
+            name = "".join(c for c in name if c not in "1234567890")
+
+            f.write(f"{name} {glyph}\n")
+
+print("Generating sitelen Kansi tables...")
+
+# this creates chinese IME tables + confs
+# pulls it from data.csv
+
+# make stuff for all 
+ALL_FILENAME = "toki_pona_sitelen_Kansi_All"
+make_conf("All", ALL_FILENAME) 
+
+all_table = open(f"generated_tables/{ALL_FILENAME}.txt", "w")
+all_table.write(KANSI_TABLE_HEADER)
+
+
+with open('data.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',', quotechar='\"')
+
+    words = next(reader) 
+
+    for row in reader:
         
-try:
-    os.mkdir("raw_tables")
-    os.mkdir("table")
-    os.mkdir("confs")
-except FileExistsError as e:
-    pass
+        name = row[0]
+        filepath = "toki_pona_sitelen_Kansi_" + name.replace(" ", "_")
 
-names = [f"sitelen Kansi ({x})" for x in ["Tencent QQ", "sitelen munjan", "jan Josan", "jan Mato (jp)", "jan Mato (zh)", "jan U", "enervation", "jan lili", "StuleBackery", "sitelen Sonko pona", "WillBaneOfGods", "nasin pi kulupu Eko", "JoeStrout", "Evilkenevil77", "sitelen Sonwa", "sitelen Kanpun", "All"]] + ["UCSUR", "Toki Pona Script (dingbats)", "nasin pi sitelen jelo"]
+        make_conf(name, filepath)
 
-filenames = ["toki_pona_" + x.replace(" ", "_").replace("(", "").replace(")", "").lower() for x in names]
+        with open(f"generated_tables/{filepath}.txt", "w") as f:
+            f.write(KANSI_TABLE_HEADER)
 
-data = open("data.txt").read()
+            for word, chars in zip(words[1:], row[1:]):
+                if chars:
+                    for char in chars.split(", "):
+                        f.write(f"{word} {char}\n")
+                        all_table.write(f"{word}, {char}\n")
+                    #f.write("\n") 
+        all_table.write("\n")
 
-for n, fn, d in zip(names, filenames, data.split("---")):
+print("Building tables...")
 
-    print(n, fn)
-    
-    with open(f"raw_tables/{fn}.txt", "w") as f:
-        f.write(headers[n])
-        f.write(d.strip())
+for file in os.listdir("generated_tables"):
+    fn = file[:-4]
 
-    subprocess.Popen(["libime_tabledict", f"raw_tables/{fn}.txt", f"table/{fn}.dict"])
+    p = subprocess.Popen(["libime_tabledict", f"generated_tables/{fn}.txt", f"table/{fn}.dict"])
+    p.wait()
+    if p.returncode:
+        print(f"{fn} failed to build")
+        quit(1)
 
-    make_conf(n, fn)
+for file in os.listdir("static_tables"):
+    fn = file[:-4]
+
+    p = subprocess.Popen(["libime_tabledict", f"static_tables/{fn}.txt", f"table/{fn}.dict"])
+    p.wait()
+    if p.returncode:
+        print(f"{fn} failed to build")
+        quit(1)
+
+print("Copying static confs...")
+
+for file in os.listdir("static_confs"):
+    shutil.copy(f"static_confs/{file}", f"confs/{file}")
